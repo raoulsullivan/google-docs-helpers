@@ -1,18 +1,22 @@
+#TODO: sort logging, better worksheet identifies (helpers?)
+
 import gdata.spreadsheet
 import gdata.docs.service
 import gdata.spreadsheet.service
 import re
+import logging
+from collections import OrderedDict
 
 class GoogleSpreadsheetsClient():
     """ Set up Google spreadsheets client """
 
-    def __init__(self, gmail_username, gmail_password, log, sSourceName='Default'):
-        self.log = log
+    def __init__(self, gmailUsername, gmailPassword, sSourceName='Default', bDebug=False):
+        self.log = logging.getLogger('gDocsLogger')
         self.spr_client = gdata.spreadsheet.service.SpreadsheetsService()
-        self.spr_client.email = gmail_username
-        self.spr_client.password = gmail_password
+        self.spr_client.email = gmailUsername
+        self.spr_client.password = gmailPassword
         self.spr_client.source = sSourceName
-        self.spr_client.http_client.debug = True
+        self.spr_client.http_client.debug = bDebug
         self.spr_client.ProgrammaticLogin()
     
     def ExposeClient(self):
@@ -29,10 +33,10 @@ class GoogleSpreadsheetsClient():
             self.spr_client.UpdateCell(row=1, col=i, inputValue=header, key=sSpreadsheetKey, wksht_id=sWorksheetId)
         self.log.info('Headers added ok')
 
-    def SortHeader(self,header):
+    def EscapeHeader(self,header):
         """Makes a header that gdocs can deal with """
         header = header.lower()
-        header = re.sub('[\s_]+','-',header)
+        #header = re.sub('[\s_]+','-',header)
         header = re.sub('[^0-9a-z-]+','',header)
         return(header)
 
@@ -41,13 +45,13 @@ class GoogleSpreadsheetsClient():
         self.log.info('Creating a new table on worksheet %s',sWorksheetId)
         aHeaders = []
         for key, value in aRows[0].items():
-            aHeaders.append(self.SortHeader(key))
+            aHeaders.append(self.EscapeHeader(key))
         self.CreateTableHeaders(sSpreadsheetKey,sWorksheetId,aHeaders)
         i = 0 
         for row in aRows:
             dRow = {}
             for key, value in row.items():
-                dRow[self.SortHeader(key)] = str(value)
+                dRow[self.EscapeHeader(key)] = str(value)
             self.log.debug(dRow)
             self.spr_client.InsertRow(dRow,sSpreadsheetKey,wksht_id=sWorksheetId)
             i += 1
@@ -79,3 +83,32 @@ class GoogleSpreadsheetsClient():
             batch.AddUpdate(fWorksheetCellsFeed.entry[i])
 
         self.spr_client.ExecuteBatch(batch, fWorksheetCellsFeed.GetBatchLink().href)
+    
+    def GetHeadersFromWorksheet(self,sSpreadsheetKey,sWorksheetId):
+        """Gets the headers from a worksheet"""
+        headers = []
+        feed = self.spr_client.GetCellsFeed(sSpreadsheetKey,sWorksheetId)
+        for i, entry in enumerate(feed.entry):
+        #iterate through the cells feed until the second row, taking the cell contents as headers
+            if int(entry.cell.row) >= 2:
+                break
+            headers.append(self.EscapeHeader(entry.content.text))
+        return(headers)
+
+    def GetRowsFromWorksheet(self,sSpreadsheetKey,sWorksheetId):
+        """Gets the rows from a worksheet"""
+        headers = self.GetHeadersFromWorksheet(sSpreadsheetKey,sWorksheetId)
+        rows = []
+        feed = self.spr_client.GetListFeed(key=sSpreadsheetKey,wksht_id=sWorksheetId)
+        for i, entry in enumerate(feed.entry):
+            row = OrderedDict()
+            row['id'] = i
+            for header in headers:
+                row[header] = entry.custom[header].text
+            rows.append(row)
+        return(rows)
+
+    def PutRowsIntoWorksheet(self,sSpreadsheetKey,sWorksheetId,aRows):
+        """Appeands a row to a worksheet"""
+        for dRow in aRows:
+            entry = self.spr_client.InsertRow(dRow,sSpreadsheetKey,sWorksheetId)
