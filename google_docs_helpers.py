@@ -16,7 +16,7 @@ class GoogleSpreadsheetsClient():
         self.spr_client.email = gmailUsername
         self.spr_client.password = gmailPassword
         self.spr_client.source = sSourceName
-        self.spr_client.debug = bDebug
+        self.spr_client.debug = False
         self.spr_client.ProgrammaticLogin()
     
     def ExposeClient(self):
