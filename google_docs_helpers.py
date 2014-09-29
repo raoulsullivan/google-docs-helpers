@@ -4,7 +4,7 @@ import gdata.spreadsheet
 import gdata.docs.service
 import gdata.spreadsheet.service
 import re
-import logging
+from logging_setup import logFactory
 from collections import OrderedDict
 
 class GoogleSpreadsheetsClient():
@@ -16,7 +16,7 @@ class GoogleSpreadsheetsClient():
         self.spr_client.email = gmailUsername
         self.spr_client.password = gmailPassword
         self.spr_client.source = sSourceName
-        self.spr_client.http_client.debug = bDebug
+        self.spr_client.http_client.debug = logFactory('googleSpreadsheetsLogger',debug=dDebug)
         self.spr_client.ProgrammaticLogin()
     
     def ExposeClient(self):
