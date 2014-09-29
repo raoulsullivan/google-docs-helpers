@@ -11,12 +11,12 @@ class GoogleSpreadsheetsClient():
     """ Set up Google spreadsheets client """
 
     def __init__(self, gmailUsername, gmailPassword, sSourceName='Default', bDebug=False):
-        self.log = logging.getLogger('gDocsLogger')
+        self.log = logFactory('googleSpreadsheetsLogger',debug=dDebug)
         self.spr_client = gdata.spreadsheet.service.SpreadsheetsService()
         self.spr_client.email = gmailUsername
         self.spr_client.password = gmailPassword
         self.spr_client.source = sSourceName
-        self.spr_client.http_client.debug = logFactory('googleSpreadsheetsLogger',debug=dDebug)
+        self.spr_client.debug = bDebug
         self.spr_client.ProgrammaticLogin()
     
     def ExposeClient(self):
