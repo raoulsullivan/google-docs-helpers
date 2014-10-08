@@ -87,7 +87,7 @@ class GoogleSpreadsheetsClient():
                 targetsheet=sheet
 
         if targetsheet:
-            targetsheet.row_count.text = 1
+            targetsheet.row_count.text = '1'
             self.spr_client.UpdateWorksheet(targetsheet)
 
         #This method parked as it doesn't seem to actually delete the rows?
