@@ -76,6 +76,22 @@ class GoogleSpreadsheetsClient():
     def EmptyGoogleWorksheet(self,sSpreadsheetKey,sWorksheetId):
         """ Nukes the worksheet in question from orbit """
         self.log.info('Emptying worksheet ' + sWorksheetId)
+        #list feed method fails to clear empty rows
+        #lfeed = gdata.spreadsheet.GetListFeed(key=sSpreadsheetKey,wksht_id=sWorksheetId)
+        #for row in lfeed.entry.reverse():
+        #    gdata.spreadsheet.DeleteRow(row)
+
+        sheets = self.spr_client.GetWorksheetsFeed(sSpreadsheetKey)
+        for sheet in sheets.entry:
+            if sheet._GDataEntry__id.text.split('/')[-1] == sWorksheetId:
+                targetsheet=sheet
+
+        if targetsheet:
+            targetsheet.row_count.text = 1
+            self.spr_client.UpdateWorksheet(targetsheet)
+
+        #This method parked as it doesn't seem to actually delete the rows?
+        #Can be used to clear the header, though...
         batch = gdata.spreadsheet.SpreadsheetsCellsFeed()
         fWorksheetCellsFeed = self.spr_client.GetCellsFeed(key=sSpreadsheetKey,wksht_id=sWorksheetId)
         for i, entry in enumerate(fWorksheetCellsFeed.entry):
@@ -83,7 +99,7 @@ class GoogleSpreadsheetsClient():
             batch.AddUpdate(fWorksheetCellsFeed.entry[i])
 
         self.spr_client.ExecuteBatch(batch, fWorksheetCellsFeed.GetBatchLink().href)
-    
+
     def GetHeadersFromWorksheet(self,sSpreadsheetKey,sWorksheetId):
         """Gets the headers from a worksheet"""
         headers = []
