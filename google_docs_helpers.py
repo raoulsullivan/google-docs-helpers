@@ -47,14 +47,40 @@ class GoogleSpreadsheetsClient():
         for key, value in aRows[0].items():
             aHeaders.append(self.EscapeHeader(key))
         self.CreateTableHeaders(sSpreadsheetKey,sWorksheetId,aHeaders)
-        i = 0 
+        #ok, for some reason it seems to throw errors on some sheets when trying to add
+        #a row at the bottom where there isn't space yet.
+        #so let's add in all the rows in advance
+        sheets = self.spr_client.GetWorksheetsFeed(sSpreadsheetKey)
+        for sheet in sheets.entry:
+            if sheet._GDataEntry__id.text.split('/')[-1] == sWorksheetId:
+                targetsheet=sheet
+
+        if targetsheet:
+            targetsheet.row_count.text = str(len(aRows)+1)
+            self.spr_client.UpdateWorksheet(targetsheet)
+
+        #now add the rows
+        i = 0
         for row in aRows:
             dRow = {}
             for key, value in row.items():
                 dRow[self.EscapeHeader(key)] = str(value)
             self.log.debug(dRow)
-            self.spr_client.InsertRow(dRow,sSpreadsheetKey,wksht_id=sWorksheetId)
-            i += 1
+            errorcount = 0
+            maxerror = 3
+            while errorcount < maxerror:
+                try:
+                    self.spr_client.InsertRow(dRow,sSpreadsheetKey,wksht_id=sWorksheetId)
+                except Exception as e:
+                    self.log.warning(e)
+                    obj = json.loads(e.msg)
+                    if not (obj['status'] in [500,502]):
+                        raise
+                    errorcount += 1
+                    self.log.warning('Retrying - attempt {0} of {1}'.format(errorcount,maxerror))
+                    continue
+                i += 1
+                break
 
         self.log.info('%s rows added',i)
 
